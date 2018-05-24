@@ -9,7 +9,8 @@
       <span v-else-if="state < 2">?</span>
     </p>
     <div class="ruler">
-      <div class="arc" :style="`width: ${39 * firstNumberExpected}px`">
+      <div class="arc" :style="`width: ${39 * firstNumberExpected}px;
+        height: ${8 * (+ firstNumberExpected + 1)}px`">
         <div class="number">
           <input v-if="state === 0" :style="`width: ${firstNumberExpected.length}ch`"
             ref="firstNumberInput" :maxlength="firstNumberExpected.length"
@@ -18,7 +19,8 @@
           <span v-else>{{firstNumber}}</span>
         </div>
       </div><!--
-      --><div class="arc" v-if="state > 0" :style="`width: ${39 * secondNumberExpected}px`">
+      --><div class="arc" v-if="state > 0" :style="`width: ${39 * secondNumberExpected}px;
+        height: ${8 * (+ secondNumberExpected + 1)}px`">
         <div class="number">
           <input v-if="state === 1" :style="`width: ${secondNumberExpected.length}ch`"
             ref="secondNumberInput" :maxlength="secondNumberExpected.length"
@@ -44,18 +46,33 @@ export default class Axis extends Vue {
   firstHasFocus = false
   secondHasFocus = false
 
-  firstNumberExpected = '11'
-  secondNumberExpected = '9'
-  sumExpected = '17'
+  firstNumberExpected = '7'
+  secondNumberExpected = '5'
+  sumExpected = '12'
+
+  fillNumbers() {
+    const a = Number(prompt('Введите число a | a ​​∈ [6, 9]')) // eslint-disable-line no-alert
+    if (isNaN(a) || a < 6 || a > 9) {
+      return false
+    }
+    const b = Number(prompt('Введите число b | a + b ​∈ [11, 14]')) // eslint-disable-line no-alert
+    if (isNaN(b) || (a + b) < 11 || (a + b) > 14) {
+      return false
+    }
+    this.firstNumberExpected = String(a)
+    this.secondNumberExpected = String(b)
+    this.sumExpected = String(a + b)
+    return true
+  }
+
+  created() {
+    while (!this.fillNumbers());
+  }
 
   get state() {
     return (this.firstNumber === this.firstNumberExpected ? 1 : 0) +
       (this.secondNumber === this.secondNumberExpected ? 1 : 0) +
       (this.sum === this.sumExpected ? 1 : 0)
-  }
-
-  mounted() {
-    this.onStateChange()
   }
 }
 </script>
@@ -104,18 +121,14 @@ input:invalid {
 
 .arc:first-child {
   margin-left: 35px;
-  background: red;
 }
 
 .arc {
   position: relative;
   display: inline-block;
-  sbackground-image: url(../assets/arc.svg);
-  background: green;
-  opacity: 0.7;
+  background: url(../assets/arc.png) no-repeat;
+  background-size: 100% 100%;
   margin-top: -80px;
-  width: 78px;
-  height: 100px;
 }
 
 .formula {
