@@ -1,33 +1,25 @@
 <template>
   <div class="container">
     <p class="formula">
-      <span :class="firstHasFocus && 'highlight'">{{firstNumberExpected}}</span> +
-      <span :class="secondHasFocus && 'highlight'">{{secondNumberExpected}}</span> =
-      <input v-if="state === 2" ref="sumInput" :maxlength="sumExpected.length"
-        v-model="sum" :pattern="sumExpected" :style="`width: ${sumExpected.length}ch`" />
-      <span v-else-if="state > 2">{{sumExpected}}</span>
-      <span v-else-if="state < 2">?</span>
+      <span :class="!firstNumberIsValid && 'highlight'">{{firstNumberExpected}}</span> +
+      <span :class="!secondNumberIsValid && 'highlight'">{{secondNumberExpected}}</span> =
+      <input :maxlength="2" v-model="sum" :pattern="`1|${sumExpected}`"
+        :readonly="state != 2" :style="`width: 2ch`" />
     </p>
     <div class="ruler">
-      <div class="arc" :style="`width: ${39 * firstNumberExpected}px;
-        height: ${8 * (+ firstNumberExpected + 1)}px`">
+      <div class="arc" :style="firstNumberArcStyle">
         <div class="number">
-          <input v-if="state === 0" :style="`width: ${firstNumberExpected.length}ch`"
-            ref="firstNumberInput" :maxlength="firstNumberExpected.length"
-            v-model="firstNumber" :pattern="firstNumberExpected"
-            @focus="() => firstHasFocus = true" @blur="() => firstHasFocus = false"/>
-          <span v-else>{{firstNumber}}</span>
+          <input :maxlength="1" v-model="firstNumber"
+            :pattern="firstNumberExpected" :readonly="state > 0" />
         </div>
+        <canvas ref="firstArcCanvas" />
       </div><!--
-      --><div class="arc" v-if="state > 0" :style="`width: ${39 * secondNumberExpected}px;
-        height: ${8 * (+ secondNumberExpected + 1)}px`">
+      --><div class="arc" :style="secondNumberArcStyle" :class="state === 0 && 'hidden'">
         <div class="number">
-          <input v-if="state === 1" :style="`width: ${secondNumberExpected.length}ch`"
-            ref="secondNumberInput" :maxlength="secondNumberExpected.length"
-            v-model="secondNumber" :pattern="secondNumberExpected"
-            @focus="() => secondHasFocus = true" @blur="() => secondHasFocus = false" />
-          <span v-else-if="state > 1">{{secondNumber}}</span>
+          <input :maxlength="1" v-model="secondNumber"
+            :pattern="secondNumberExpected" :readonly="state > 1" />
         </div>
+        <canvas ref="secondArcCanvas" />
       </div>
     </div>
   </div>
@@ -35,38 +27,81 @@
 
 <script>
 import Vue from 'vue'
-import { Component } from 'vue-property-decorator'
+import { Component, Watch } from 'vue-property-decorator'
+
+const getRandomInt = (from, to) => from + Math.round(Math.random() * (to - from))
+const PIXELS_PER_ONE_RULER_UNIT = 39
 
 @Component
 export default class Axis extends Vue {
-  firstNumber = '' // [6-9]
-  secondNumber = '' // [2-8]
-  sum = ''
+  firstNumber = ''
+  secondNumber = ''
+  sum = '?'
 
-  firstHasFocus = false
-  secondHasFocus = false
+  firstNumberIsValid = true
+  secondNumberIsValid = true
+
+  getArcStyle = numberStr => `
+    width: ${PIXELS_PER_ONE_RULER_UNIT * numberStr}px;
+    height: ${8 * (+numberStr + 1)}px
+    `
+
+  get firstNumberArcStyle() {
+    return this.getArcStyle(this.firstNumberExpected)
+  }
+
+  get secondNumberArcStyle() {
+    return this.getArcStyle(this.secondNumberExpected)
+  }
+
+  @Watch('firstNumber') onFirstNumberChanged() {
+    this.firstNumberIsValid = this.firstNumberExpected.startsWith(this.firstNumber)
+  }
+
+  @Watch('secondNumber') onSecondNumberChanged() {
+    this.secondNumberIsValid = this.secondNumberExpected.startsWith(this.secondNumber)
+  }
+
+  mounted() {
+    const { firstArcCanvas, secondArcCanvas } = this.$refs
+    this.updateCanvas(firstArcCanvas)
+    this.updateCanvas(secondArcCanvas)
+  }
+
+  updateCanvas = (canvas) => {
+    canvas.width = canvas.offsetWidth // eslint-disable-line no-param-reassign
+    canvas.height = canvas.offsetHeight // eslint-disable-line no-param-reassign
+    const { width, height } = canvas
+    const ctx = canvas.getContext('2d')
+    ctx.lineWidth = 2
+    ctx.strokeStyle = 'purple'
+    ctx.clearRect(0, 0, width, height)
+    ctx.beginPath()
+    ctx.moveTo(0, height)
+    ctx.quadraticCurveTo(width / 2, -height + 10, width, height)
+    ctx.moveTo(width, height)
+    ctx.lineTo(width - 13, height - 22)
+    ctx.moveTo(width, height)
+    ctx.lineTo(width - 20, height - 5)
+    ctx.stroke()
+  }
+
+  @Watch('state') onStateChanged() {
+    if (this.state === 2) {
+      this.sum = ''
+    }
+  }
 
   firstNumberExpected = '7'
   secondNumberExpected = '5'
   sumExpected = '12'
 
-  fillNumbers() {
-    const a = Number(prompt('Введите число a | a ​​∈ [6, 9]')) // eslint-disable-line no-alert
-    if (isNaN(a) || a < 6 || a > 9) {
-      return false
-    }
-    const b = Number(prompt('Введите число b | a + b ​∈ [11, 14]')) // eslint-disable-line no-alert
-    if (isNaN(b) || (a + b) < 11 || (a + b) > 14) {
-      return false
-    }
+  created() {
+    const a = getRandomInt(6, 9)
+    const b = getRandomInt(11 - a, 14 - a)
     this.firstNumberExpected = String(a)
     this.secondNumberExpected = String(b)
     this.sumExpected = String(a + b)
-    return true
-  }
-
-  created() {
-    while (!this.fillNumbers());
   }
 
   get state() {
@@ -110,6 +145,10 @@ input:invalid {
   color: red;
 }
 
+input[readonly] {
+  border-color: white;
+}
+
 .container {
   display: flex;
   width: 100%;
@@ -126,10 +165,21 @@ input:invalid {
 .arc {
   position: relative;
   display: inline-block;
-  background: url(../assets/arc.png) no-repeat;
-  background-size: 100% 100%;
   margin-top: -80px;
 }
+
+.hidden {
+  visibility: hidden;
+}
+
+canvas {
+  position: absolute;
+  height: 100%;
+  width: 100%;
+  bottom: 0;
+  left: 0;
+}
+
 
 .formula {
   font-size: 200%;
